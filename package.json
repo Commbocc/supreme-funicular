@@ -1,0 +1,18 @@
+{
+  "name": "hcflgov.net",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": " nuxt dev",
+    "build": " nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "nuxt:typecheck": "nuxi typecheck",
+    "postinstall": "nuxt prepare"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "^1.0.4",
+    "contentstack": "^3.17.2",
+    "nuxt": "3.8.2"
+  }
+}
