@@ -1,0 +1,35 @@
+name: Test Netlify Preview
+
+on:
+  deployment_status:
+
+jobs:
+  test-preview:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        path:
+          - /
+          - /welcome
+          - /api/test
+          - /404
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get preview URL
+        run: |
+          echo "URL=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_ENV
+
+    steps:
+      - name: Check URL
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.URL }}${{ matrix.path }}")
+          echo "${{ env.URL }}${{ matrix.path }} -> $STATUS"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "Expected 200 but got $STATUS"
+            exit 1
+          fi
