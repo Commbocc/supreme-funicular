@@ -1,39 +1,50 @@
-name: Test Netlify Preview
+name: Debug Check Run
 
 on:
   check_run:
-    types: [completed]
+    types: [created, rerequested, completed]
 
 jobs:
-  test-preview:
-    if: |
-      github.event.check_run.name == 'Netlify' &&
-      github.event.check_run.conclusion == 'success'
-
+  debug:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        path:
-          - /
-          - /welcome
-          - /api/test
-          - /404
-
     steps:
-      # - name: Checkout 🛎️
-      #   uses: actions/checkout@v4
+      - run: |
+          echo '${{ toJson(github.event) }}'
 
-      - name: Get preview URL
-        run: |
-          echo "URL=https://deploy-preview-${{ github.event.pull_request.number }}--lucent-marshmallow-a6250f.netlify.app" >> $GITHUB_ENV
+# name: Test Netlify Preview
 
-      - name: Check URL
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.URL }}${{ matrix.path }}")
-          echo "${{ env.URL }}${{ matrix.path }} -> $STATUS"
+# on:
+#   check_run:
+#     types: [completed]
 
-          if [ "$STATUS" != "200" ]; then
-            echo "Expected 200 but got $STATUS"
-            exit 1
-          fi
+# jobs:
+#   test-preview:
+#     if: |
+#       github.event.check_run.name == 'Netlify' &&
+#       github.event.check_run.conclusion == 'success'
+
+#     runs-on: ubuntu-latest
+
+#     strategy:
+#       matrix:
+#         path:
+#           - /
+#           - /welcome
+#           - /api/test
+#           - /404
+
+#     steps:
+#       - name: Get preview URL
+#         run: |
+#           echo "URL=https://deploy-preview---lucent-marshmallow-a6250f.netlify.app" >> $GITHUB_ENV
+
+#       - name: Check URL
+#         run: |
+#           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.URL }}${{ matrix.path }}")
+#           echo "${{ env.URL }}${{ matrix.path }} -> $STATUS"
+
+#           if [ "$STATUS" != "200" ]; then
+#             echo "Expected 200 but got $STATUS"
+#             exit 1
+#           fi
