@@ -17,13 +17,13 @@ jobs:
           - /404
 
     steps:
+      - name: Checkout 🛎️
       - uses: actions/checkout@v4
 
       - name: Get preview URL
         run: |
           echo "URL=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_ENV
 
-    steps:
       - name: Check URL
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.URL }}${{ matrix.path }}")
