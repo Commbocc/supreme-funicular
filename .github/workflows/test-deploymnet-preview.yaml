@@ -79,6 +79,8 @@ jobs:
             fi
           done
 
+          echo "$BODY"
+
           gh pr comment "$PR_NUMBER" --repo ${{ github.repository }} --body "$BODY"
 
           exit $FAILED
