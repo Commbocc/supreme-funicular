@@ -2,7 +2,7 @@ name: Debug Check Run
 
 on:
   check_suite:
-    types: [created, rerequested, completed]
+    types: [completed]
 
 jobs:
   debug:
