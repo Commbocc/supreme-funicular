@@ -13,28 +13,108 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      pull-requests: write
+
     steps:
-      - name: Check URLs return 200
-        run: |
-          BASE_URL="${{ github.event.target_url }}"
+      # - name: Check URLs return 200
+      #   run: |
+      #     BASE_URL="${{ github.event.target_url }}"
 
-          PATHS=(
-            "/"
-            "/welcome"
-            "/api/test"
-            "/404"
-          )
+      #     PATHS=(
+      #       "/"
+      #       "/welcome"
+      #       "/api/test"
+      #       "/404"
+      #     )
 
-          FAILED=0
-          for path in "${PATHS[@]}"; do
-            URL="${BASE_URL}${path}"
-            STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ $URL → $STATUS"
-            else
-              echo "❌ $URL → $STATUS"
-              FAILED=1
-            fi
-          done
+      #     FAILED=0
+      #     for path in "${PATHS[@]}"; do
+      #       URL="${BASE_URL}${path}"
+      #       STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
+      #       if [ "$STATUS" = "200" ]; then
+      #         echo "✅ $URL → $STATUS"
+      #       else
+      #         echo "❌ $URL → $STATUS"
+      #         FAILED=1
+      #       fi
+      #     done
 
-          exit $FAILED
+      #     exit $FAILED
+
+      - name: Check URLs and comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // 1. Find the open PR associated with this commit
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+            });
+
+            const pr = prs.find(pr => pr.state === 'open');
+            if (!pr) {
+              console.log('No open PR found for this commit, skipping.');
+              return;
+            }
+
+            // 2. Check each URL
+            const baseUrl = context.payload.target_url;
+            const paths = ['/', '/about', '/blog'];
+
+            const results = await Promise.all(
+              paths.map(async (path) => {
+                const url = `${baseUrl}${path}`;
+                try {
+                  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+                  return { url, status: res.status, ok: res.status === 200 };
+                } catch (e) {
+                  return { url, status: 'error', ok: false };
+                }
+              })
+            );
+
+            // 3. Build the comment body
+            const passed = results.every(r => r.ok);
+            const rows = results
+              .map(({ url, status, ok }) => `| ${ok ? '✅' : '❌'} | \`${url}\` | \`${status}\` |`)
+              .join('\n');
+
+            const body = [
+              `## Deploy Preview URL Checks ${passed ? '✅ All passing' : '❌ Some failed'}`,
+              '',
+              '| | URL | Status |',
+              '|---|---|---|',
+              rows,
+              '',
+              `> 🔗 [Preview](${baseUrl})`,
+            ].join('\n');
+
+            // 4. Update existing bot comment or create a new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.includes('Deploy Preview URL Checks')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body,
+              });
+            }
