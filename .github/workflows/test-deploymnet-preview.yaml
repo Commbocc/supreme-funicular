@@ -17,9 +17,9 @@ jobs:
       pull-requests: write
 
     steps:
-      - name: debug
-        run: |
-          echo '${{ toJson(github.event) }}'
+      # - name: debug
+      #   run: |
+      #     echo '${{ toJson(github.event) }}'
 
       # - name: Check URLs return 200
       #   run: |
@@ -70,11 +70,11 @@ jobs:
           BODY="**Deploy Preview URL Checks**"$'\n'
 
           for check in "${CHECKS[@]}"; do
-            PATH="${check%%:*}"
+            URL_PATH="${check%%:*}"
             EXPECTED="${check##*:}"
             # Default to 200 if no expected status was supplied
-            [ "$EXPECTED" = "$PATH" ] && EXPECTED="200"
-            URL="${BASE_URL}${PATH}"
+            [ "$EXPECTED" = "$URL_PATH" ] && EXPECTED="200"
+            URL="${BASE_URL}${URL_PATH}"
             ACTUAL=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
             if [ "$ACTUAL" = "$EXPECTED" ]; then
               BODY+="✅ \`${URL}\` → ${ACTUAL}"$'\n'
