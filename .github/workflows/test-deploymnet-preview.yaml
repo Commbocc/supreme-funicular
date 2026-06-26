@@ -1,7 +1,7 @@
 name: Debug Check Run
 
 on:
-  check_run:
+  check_suite:
     types: [created, rerequested, completed]
 
 jobs:
