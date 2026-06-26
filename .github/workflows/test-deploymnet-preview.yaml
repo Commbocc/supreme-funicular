@@ -1,49 +1,40 @@
-name: Debug Check Run
+name: Check Deploy Preview URLs
 
 on:
   status:
 
 jobs:
-  debug:
+  check-urls:
+    # Filter to Netlify deploy-preview statuses only
+    if: |
+      github.event.state == 'success' &&
+      contains(github.event.context, 'netlify') &&
+      contains(github.event.context, 'deploy-preview')
+
     runs-on: ubuntu-latest
 
     steps:
-      - run: |
-          echo '${{ toJson(github.event) }}'
+      - name: Check URLs return 200
+        run: |
+          BASE_URL="${{ github.event.target_url }}"
 
-# name: Test Netlify Preview
+          PATHS=(
+            "/"
+            "/welcome"
+            "/api/test"
+            "/404"
+          )
 
-# on:
-#   check_run:
-#     types: [completed]
+          FAILED=0
+          for path in "${PATHS[@]}"; do
+            URL="${BASE_URL}${path}"
+            STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "✅ $URL → $STATUS"
+            else
+              echo "❌ $URL → $STATUS"
+              FAILED=1
+            fi
+          done
 
-# jobs:
-#   test-preview:
-#     if: |
-#       github.event.check_run.name == 'Netlify' &&
-#       github.event.check_run.conclusion == 'success'
-
-#     runs-on: ubuntu-latest
-
-#     strategy:
-#       matrix:
-#         path:
-#           - /
-#           - /welcome
-#           - /api/test
-#           - /404
-
-#     steps:
-#       - name: Get preview URL
-#         run: |
-#           echo "URL=https://deploy-preview---lucent-marshmallow-a6250f.netlify.app" >> $GITHUB_ENV
-
-#       - name: Check URL
-#         run: |
-#           STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ env.URL }}${{ matrix.path }}")
-#           echo "${{ env.URL }}${{ matrix.path }} -> $STATUS"
-
-#           if [ "$STATUS" != "200" ]; then
-#             echo "Expected 200 but got $STATUS"
-#             exit 1
-#           fi
+          exit $FAILED
