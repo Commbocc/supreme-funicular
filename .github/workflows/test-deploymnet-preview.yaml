@@ -17,6 +17,10 @@ jobs:
       pull-requests: write
 
     steps:
+      - name: debug
+        run: |
+          echo '${{ toJson(github.event) }}'
+
       # - name: Check URLs return 200
       #   run: |
       #     BASE_URL="${{ github.event.target_url }}"
