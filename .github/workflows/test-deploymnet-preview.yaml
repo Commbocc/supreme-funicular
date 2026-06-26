@@ -1,8 +1,7 @@
 name: Debug Check Run
 
 on:
-  check_run:
-    types: [completed]
+  deployment_status:
 
 jobs:
   debug:
