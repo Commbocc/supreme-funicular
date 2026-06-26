@@ -43,78 +43,42 @@ jobs:
       #     exit $FAILED
 
       - name: Check URLs and comment on PR
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // 1. Find the open PR associated with this commit
-            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-            });
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_URL: ${{ github.event.target_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+            echo "No open PR found, skipping."
+            exit 0
+          fi
 
-            const pr = prs.find(pr => pr.state === 'open');
-            if (!pr) {
-              console.log('No open PR found for this commit, skipping.');
-              return;
-            }
+          # Format: "path:expected_status"
+          CHECKS=(
+            "/"
+            "/welcome"
+            "/api/test"
+            "/404:404"
+          )
 
-            // 2. Check each URL
-            const baseUrl = context.payload.target_url;
-            const paths = ['/', '/about', '/blog'];
+          FAILED=0
+          BODY="**Deploy Preview URL Checks**"$'\n'
 
-            const results = await Promise.all(
-              paths.map(async (path) => {
-                const url = `${baseUrl}${path}`;
-                try {
-                  const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-                  return { url, status: res.status, ok: res.status === 200 };
-                } catch (e) {
-                  return { url, status: 'error', ok: false };
-                }
-              })
-            );
+          for check in "${CHECKS[@]}"; do
+            PATH="${check%%:*}"
+            EXPECTED="${check##*:}"
+            # Default to 200 if no expected status was supplied
+            [ "$EXPECTED" = "$PATH" ] && EXPECTED="200"
+            URL="${BASE_URL}${PATH}"
+            ACTUAL=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              BODY+="✅ \`${URL}\` → ${ACTUAL}"$'\n'
+            else
+              BODY+="❌ \`${URL}\` → ${ACTUAL} (expected ${EXPECTED})"$'\n'
+              FAILED=1
+            fi
+          done
 
-            // 3. Build the comment body
-            const passed = results.every(r => r.ok);
-            const rows = results
-              .map(({ url, status, ok }) => `| ${ok ? '✅' : '❌'} | \`${url}\` | \`${status}\` |`)
-              .join('\n');
+          gh pr comment "$PR_NUMBER" --repo ${{ github.repository }} --body "$BODY"
 
-            const body = [
-              `## Deploy Preview URL Checks ${passed ? '✅ All passing' : '❌ Some failed'}`,
-              '',
-              '| | URL | Status |',
-              '|---|---|---|',
-              rows,
-              '',
-              `> 🔗 [Preview](${baseUrl})`,
-            ].join('\n');
-
-            // 4. Update existing bot comment or create a new one
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-            });
-
-            const existing = comments.find(c =>
-              c.user.login === 'github-actions[bot]' &&
-              c.body.includes('Deploy Preview URL Checks')
-            );
-
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: pr.number,
-                body,
-              });
-            }
+          exit $FAILED
