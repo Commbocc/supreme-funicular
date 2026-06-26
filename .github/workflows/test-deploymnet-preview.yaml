@@ -1,7 +1,7 @@
 name: Debug Check Run
 
 on:
-  deployment_status:
+  status:
 
 jobs:
   debug:
