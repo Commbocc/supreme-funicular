@@ -1,3 +1,3 @@
 export default defineEventHandler(async (event) => {
-  return { s: 1 }
+  return { s: new Date() }
 })
