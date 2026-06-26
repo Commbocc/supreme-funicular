@@ -1,11 +1,15 @@
 name: Test Netlify Preview
 
 on:
-  deployment_status:
+  check_run:
+    types: [completed]
 
 jobs:
   test-preview:
-    if: github.event.deployment_status.state == 'success'
+    if: |
+      github.event.check_run.name == 'Netlify' &&
+      github.event.check_run.conclusion == 'success'
+
     runs-on: ubuntu-latest
 
     strategy:
@@ -17,12 +21,12 @@ jobs:
           - /404
 
     steps:
-      - name: Checkout 🛎️
-        uses: actions/checkout@v4
+      # - name: Checkout 🛎️
+      #   uses: actions/checkout@v4
 
       - name: Get preview URL
         run: |
-          echo "URL=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_ENV
+          echo "URL=https://deploy-preview-${{ github.event.pull_request.number }}--lucent-marshmallow-a6250f.netlify.app" >> $GITHUB_ENV
 
       - name: Check URL
         run: |
