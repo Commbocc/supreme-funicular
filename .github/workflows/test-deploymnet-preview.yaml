@@ -21,31 +21,6 @@ jobs:
       #   run: |
       #     echo '${{ toJson(github.event) }}'
 
-      # - name: Check URLs return 200
-      #   run: |
-      #     BASE_URL="${{ github.event.target_url }}"
-
-      #     PATHS=(
-      #       "/"
-      #       "/welcome"
-      #       "/api/test"
-      #       "/404"
-      #     )
-
-      #     FAILED=0
-      #     for path in "${PATHS[@]}"; do
-      #       URL="${BASE_URL}${path}"
-      #       STATUS=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
-      #       if [ "$STATUS" = "200" ]; then
-      #         echo "✅ $URL → $STATUS"
-      #       else
-      #         echo "❌ $URL → $STATUS"
-      #         FAILED=1
-      #       fi
-      #     done
-
-      #     exit $FAILED
-
       - name: Check URLs and comment on PR
         env:
           GH_TOKEN: ${{ github.token }}
@@ -77,9 +52,9 @@ jobs:
             URL="${BASE_URL}${URL_PATH}"
             ACTUAL=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
             if [ "$ACTUAL" = "$EXPECTED" ]; then
-              BODY+="✅ \`${URL}\` → ${ACTUAL}"$'\n'
+              BODY+="✅ \`[${URL_PATH}](${URL})\` → ${ACTUAL}"$'\n'
             else
-              BODY+="❌ \`${URL}\` → ${ACTUAL} (expected ${EXPECTED})"$'\n'
+              BODY+="❌ \`[${URL_PATH}](${URL})\` → ${ACTUAL} (expected ${EXPECTED})"$'\n'
               FAILED=1
             fi
           done
