@@ -80,9 +80,9 @@ jobs:
             ACTUAL=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
 
             if [ "$ACTUAL" = "$EXPECTED" ]; then
-              BODY+="✅ \`[${URL_PATH}](${URL})\` → ${ACTUAL}"$'\n'
+              BODY+="✅ [${URL_PATH}](${URL}) → ${ACTUAL}"$'\n'
             else
-              BODY+="❌ \`[${URL_PATH}](${URL})\` → ${ACTUAL} (expected ${EXPECTED})"$'\n'
+              BODY+="❌ [${URL_PATH}](${URL}) → ${ACTUAL} (expected ${EXPECTED})"$'\n'
               FAILED=1
             fi
           done
