@@ -17,14 +17,31 @@ jobs:
       pull-requests: write
 
     steps:
-      # - name: debug
-      #   run: |
-      #     echo '${{ toJson(github.event) }}'
-
       - name: Check URLs and comment on PR
         env:
           GH_TOKEN: ${{ github.token }}
           BASE_URL: ${{ github.event.target_url }}
+          # Configure these variables in GitHub:
+          # Repository → Settings → Secrets and variables → Actions → Variables
+          # https://github.com/{myorg}/{myrepo}/settings/variables/actions/new
+          #
+          # DEPLOY_PREVIEW_CHECKS:
+          #   List of URL paths to check, with one entry per line.
+          #   Optionally specify the expected HTTP status using the configured delimiter.
+          #   Defaults to HTTP 200 when no status is specified.
+          #
+          # DEPLOY_PREVIEW_CHECKS_DELIMITER:
+          #   Character separating the URL path from its expected HTTP status.
+          #   Defaults to ":" if not configured.
+          #
+          # Example (using the default delimiter):
+          #   /
+          #   /welcome
+          #   /api/test
+          #   /404:404
+          #
+          CHECKS: ${{ vars.DEPLOY_PREVIEW_CHECKS }}
+          CHECKS_DELIMITER: ${{ vars.DEPLOY_PREVIEW_CHECKS_DELIMITER || ':' }}
         run: |
           PR_NUMBER=$(gh api /repos/${{ github.repository }}/commits/${{ github.event.sha }}/pulls --jq '.[0].number')
 
@@ -33,24 +50,35 @@ jobs:
             exit 0
           fi
 
-          # Format: "path:expected_status"
-          CHECKS=(
-            "/"
-            "/welcome"
-            "/api/test"
-            "/404:404"
-          )
+          # Validate delimiter
+          if [ -z "$CHECKS_DELIMITER" ]; then
+            CHECKS_DELIMITER=":"
+          fi
+
+          # Convert multiline variable into an iterable array
+          mapfile -t CHECKS_ARRAY <<< "$CHECKS"
+
+          # Remove Windows-style carriage returns
+          CHECKS_ARRAY=("${CHECKS_ARRAY[@]%$'\r'}")
 
           FAILED=0
           BODY="**Deploy Preview URL Checks**"$'\n'
 
-          for check in "${CHECKS[@]}"; do
-            URL_PATH="${check%%:*}"
-            EXPECTED="${check##*:}"
+          for check in "${CHECKS_ARRAY[@]}"; do
+            # Skip empty lines
+            [ -z "$check" ] && continue
+
+            # Split path and expected status using configured delimiter
+            URL_PATH="${check%%"$CHECKS_DELIMITER"*}"
+            EXPECTED="${check#*"$CHECKS_DELIMITER"}"
+
             # Default to 200 if no expected status was supplied
-            [ "$EXPECTED" = "$URL_PATH" ] && EXPECTED="200"
+            [ "$EXPECTED" = "$check" ] && EXPECTED="200"
+
             URL="${BASE_URL}${URL_PATH}"
+
             ACTUAL=$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "$URL")
+
             if [ "$ACTUAL" = "$EXPECTED" ]; then
               BODY+="✅ \`[${URL_PATH}](${URL})\` → ${ACTUAL}"$'\n'
             else
