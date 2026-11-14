@@ -1,3 +1,4 @@
 export default defineEventHandler(async (event) => {
-  return { s: new Date() }
+  const { public: publicRuntimeConfig } = useRuntimeConfig()
+  return { s: new Date(), publicRuntimeConfig }
 })
